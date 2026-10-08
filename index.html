@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Généalogie — Medieval Dynasty</title>
+<style>
+/* ===== Base ===== */
+*{box-sizing:border-box}
+:root{
+  --bg:#f3e9d2;--panel:#fffaf0;--ink:#3a2a18;--line:#cbb388;
+  --brown:#7a5c2e;--brown-dark:#4a3520;--gold:#e8d7ae;
+  --red:#8c2f2f;--green:#2f6b3a;--muted:#8a7a5f;
+  --panel-2:#eaddbf;--line-2:#e5d5b5;--hover:#f7efdd;--edge:#a8875a;
+  --conn:#c9b183;--field:#ffffff;--g-m:#3a5f8a;--g-f:#8a3a5f;
+}
+html,body{margin:0;padding:0}
+body{font:15px/1.45 Georgia,"Times New Roman",serif;background:var(--bg);color:var(--ink)}
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--brown-dark);color:#f0e2c4;padding:10px 16px;border-bottom:3px solid var(--brown)}
+header h1{font-size:18px;margin:0;font-weight:normal;letter-spacing:.5px}
+nav{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+nav.right{margin-left:auto}
+button{font:inherit;font-size:14px;background:var(--gold);color:var(--ink);border:1px solid var(--edge);border-radius:4px;padding:6px 12px;cursor:pointer}
+button:hover{filter:brightness(1.07)}
+button.primary{background:var(--brown);color:#fff;border-color:var(--brown-dark)}
+button.primary:hover{filter:brightness(1.15)}
+button.danger{background:#e7c9c9}
+button.danger:hover{filter:brightness(.94)}
+button.tab{background:transparent;color:#e5d3ad;border-color:transparent}
+button.tab:hover{background:var(--brown);filter:none}
+button.tab.active{background:var(--gold);color:var(--ink);border-color:var(--edge)}
+main{max-width:1180px;margin:0 auto;padding:18px 16px 40px;overflow-x:auto}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.toolbar .spacer{flex:1}
+label.inline{display:flex;align-items:center;gap:6px;font-size:14px}
+input,select,textarea{font:inherit;font-size:14px;padding:6px 8px;border:1px solid var(--edge);border-radius:4px;background:var(--field);color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--edge);outline-offset:1px}
+#search{min-width:250px}
+#game-year{width:92px;padding:5px 6px}
+header label.inline{color:#f0e2c4;gap:5px}
+.muted{color:var(--muted)}
+/* ===== Tableau ===== */
+table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:4px}
+th,td{padding:8px 10px;text-align:left;font-size:14px;border-bottom:1px solid var(--line-2);vertical-align:top}
+th{background:var(--panel-2);font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+tbody tr:hover td{background:var(--hover)}
+td.actions{white-space:nowrap;text-align:right}
+td.actions button{padding:2px 7px;margin-left:4px;font-size:13px;background:transparent;border-color:transparent}
+td.actions button:hover{background:var(--line-2);border-color:var(--line)}
+.badge{display:inline-block;padding:1px 9px;border-radius:10px;font-size:12px;border:1px solid}
+.badge.alive{background:#e0efdf;color:var(--green);border-color:#a9c9ab}
+.badge.dead{background:#efe0e0;color:var(--red);border-color:#cfa9a9}
+.empty{background:var(--panel);border:1px dashed var(--line);border-radius:6px;padding:34px;text-align:center;color:var(--muted)}
+.gender-m{color:var(--g-m)}
+.gender-f{color:var(--g-f)}
+/* ===== Statistiques ===== */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px;text-align:center}
+.stat .num{font-size:30px;color:var(--brown)}
+.stat .lbl{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px 16px}
+.panel h3{margin:0 0 10px;font-size:16px}
+/* ===== Dialogue ===== */
+dialog{border:2px solid var(--brown);border-radius:8px;padding:0;background:var(--panel);color:var(--ink);width:min(560px,92vw);box-shadow:0 10px 40px rgba(0,0,0,.35)}
+dialog::backdrop{background:rgba(20,12,4,.55)}
+dialog h2{margin:0;padding:14px 16px;background:var(--brown-dark);color:#f0e2c4;font-size:16px;font-weight:normal}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;padding:16px}
+.form-grid label{display:flex;flex-direction:column;gap:4px;font-size:13px}
+.form-grid .span2{grid-column:1/-1}
+.dlg-actions{display:flex;justify-content:flex-end;gap:8px;padding:0 16px 16px}
+/* ===== Arbre généalogique ===== */
+.tree{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:18px;overflow-x:auto}
+.tree ul{list-style:none;margin:0;padding-left:24px;border-left:2px solid var(--conn)}
+.tree>ul{padding-left:0;border-left:none}
+.tree li{position:relative;padding:9px 0 0 20px}
+.tree li::before{content:"";position:absolute;left:0;top:26px;width:16px;border-top:2px solid var(--conn)}
+.tree>ul>li{padding-left:0}
+.tree>ul>li::before{display:none}
+.node{display:inline-block;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--brown);border-radius:6px;padding:7px 13px;min-width:170px;text-align:center}
+.node .names{font-weight:bold}
+.node .names .partner{font-weight:normal;color:var(--muted)}
+.node .meta{font-size:12px;color:var(--muted);margin-top:3px}
+.node.dead{opacity:.78;border-left-color:var(--red)}
+/* ===== Thèmes de couleurs (presets) ===== */
+:root[data-theme="sombre"]{
+  --bg:#1d1712;--panel:#2a2219;--panel-2:#39301f;--ink:#ecdfc9;--line:#4d4030;--line-2:#3a3025;
+  --hover:#372d21;--brown:#a9854e;--brown-dark:#14100b;--gold:#453824;--edge:#6b573c;
+  --conn:#5d4b34;--field:#231c14;--muted:#a99a83;--g-m:#7aa7e0;--g-f:#e092b6;
+}
+:root[data-theme="foret"]{
+  --bg:#e7efe4;--panel:#f6faf3;--panel-2:#d7e6d0;--ink:#26331f;--line:#a9c2a0;--line-2:#d3e2cd;
+  --hover:#e4efdf;--brown:#4f7a4a;--brown-dark:#243b22;--gold:#d8e8d1;--edge:#83a87a;
+  --conn:#9fbf96;--field:#ffffff;--muted:#6c7f65;--g-m:#3a6fa8;--g-f:#8a4a5f;
+}
+:root[data-theme="ocean"]{
+  --bg:#e6edf6;--panel:#f6f9fd;--panel-2:#d4e2f1;--ink:#1e2c3d;--line:#a6bed6;--line-2:#d2e0ee;
+  --hover:#e3ecf7;--brown:#3d6a94;--brown-dark:#1b3350;--gold:#d5e4f2;--edge:#7fa6c9;
+  --conn:#9ab6cf;--field:#ffffff;--muted:#64798f;--g-m:#3a5f8a;--g-f:#8a3a5f;
+}
+:root[data-theme="automne"]{
+  --bg:#f7e9e2;--panel:#fdf7f3;--panel-2:#f2d9cd;--ink:#3d241c;--line:#d3ab9c;--line-2:#eed7cb;
+  --hover:#f8ebe3;--brown:#93413a;--brown-dark:#4e201c;--gold:#f2dbd1;--edge:#c1907f;
+  --conn:#d2a99e;--field:#ffffff;--muted:#8f7367;--g-m:#3a5f8a;--g-f:#8a3a5f;
+}
+:root[data-theme="pierre"]{
+  --bg:#ececec;--panel:#f9f9f9;--panel-2:#dedede;--ink:#2b2b2b;--line:#bfbfbf;--line-2:#dcdcdc;
+  --hover:#e6e6e6;--brown:#6b6b6b;--brown-dark:#333333;--gold:#dedede;--edge:#a3a3a3;
+  --conn:#b0b0b0;--field:#ffffff;--muted:#7a7a7a;--g-m:#3a5f8a;--g-f:#8a3a5f;
+}
+@media (max-width:640px){
+  header h1{font-size:15px}
+  #search{min-width:0;flex:1}
+  .form-grid{grid-template-columns:1fr}
+}
+
+
+</style>
+</head>
+<body>
+<header>
+  <h1>🏰 Généalogie — Medieval Dynasty</h1>
+  <nav>
+    <button class="tab active" data-view="list">👤 Villageois</button>
+    <button class="tab" data-view="tree">🌳 Arbre</button>
+    <button class="tab" data-view="stats">📊 Stats</button>
+  </nav>
+  <nav class="right">
+    <label class="inline" title="Thème de couleurs">🎨
+      <select id="theme-select">
+        <option value="parchemin">📜 Parchemin</option>
+        <option value="sombre">🌑 Château nuit</option>
+        <option value="foret">🌲 Forêt</option>
+        <option value="ocean">🌊 Océan</option>
+        <option value="automne">🍂 Automne</option>
+        <option value="pierre">🪨 Pierre</option>
+      </select>
+    </label>
+    <label class="inline" title="Année actuelle du jeu (le jeu démarre en 1500)">📅 Année
+      <input id="game-year" type="number" min="1500" max="9999" value="1500">
+    </label>
+    <button id="btn-export" title="Exporter les données au format JSON">⬇ Exporter</button>
+    <button id="btn-import" title="Importer un fichier JSON">⬆ Importer</button>
+    <input type="file" id="file-import" accept=".json,application/json" hidden>
+    <button id="btn-reset" class="danger" title="Effacer toutes les données">♻ Réinitialiser</button>
+  </nav>
+</header>
+
+<main>
+  <!-- ===== Vue : liste des villageois ===== -->
+  <section id="view-list">
+    <div class="toolbar">
+      <input type="search" id="search" placeholder="🔎 Rechercher un villageois…">
+      <select id="filter-status">
+        <option value="">Tous les statuts</option>
+        <option value="alive">Vivants</option>
+        <option value="dead">Décédés</option>
+      </select>
+      <span class="spacer"></span>
+      <button id="btn-sample" title="Charger une famille d'exemple">📜 Exemple</button>
+      <button id="btn-add" class="primary">＋ Ajouter un villageois</button>
+    </div>
+    <div id="list-empty" class="empty" hidden>
+      <p><b>Aucun villageois pour le moment.</b></p>
+      <p>Cliquez sur <b>＋ Ajouter un villageois</b> pour commencer,<br>ou chargez une famille d'exemple avec <b>📜 Exemple</b>.</p>
+    </div>
+    <table id="list-table">
+      <thead>
+        <tr>
+          <th>Nom</th><th>Sexe</th><th>Gén.</th><th>Âge</th><th>Statut</th><th>Décès</th>
+          <th>Conjoint(e)</th><th>Parents</th><th>Enfants</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="list-body"></tbody>
+    </table>
+  </section>
+
+  <!-- ===== Vue : arbre généalogique ===== -->
+  <section id="view-tree" hidden>
+    <div class="toolbar">
+      <label class="inline">Afficher :
+        <select id="tree-root"></select>
+      </label>
+      <span id="tree-info" class="muted"></span>
+    </div>
+    <div id="tree" class="tree"></div>
+  </section>
+
+  <!-- ===== Vue : statistiques ===== -->
+  <section id="view-stats" hidden>
+    <div id="stats" class="stats-grid"></div>
+    <div id="stats-extra"></div>
+  </section>
+</main>
+
+<!-- ===== Dialogue : ajout / modification ===== -->
+<dialog id="dlg">
+  <form id="form" method="dialog">
+    <h2 id="dlg-title">Ajouter un villageois</h2>
+    <div class="form-grid">
+      <label class="span2">Nom *
+        <input id="f-name" required maxlength="60" placeholder="ex. Henri" autocomplete="off">
+      </label>
+      <label>Sexe
+        <select id="f-gender">
+          <option value="M">♂ Homme</option>
+          <option value="F">♀ Femme</option>
+        </select>
+      </label>
+      <label>Statut
+        <select id="f-status">
+          <option value="alive">Vivant</option>
+          <option value="dead">Décédé</option>
+        </select>
+      </label>
+      <label>Date de naissance
+        <input id="f-birth" type="number" min="1" max="9999" placeholder="ex. 1470" autocomplete="off">
+      </label>
+      <label>Année de mort
+        <input id="f-death" type="number" min="1" max="9999" placeholder="ex. 1523 (départ : 1500)" autocomplete="off">
+      </label>
+      <label>Conjoint(e)
+        <select id="f-spouse"></select>
+      </label>
+      <label>Année de mariage
+        <input id="f-marriage" type="number" min="1" max="9999" placeholder="ex. 1478" title="Uniquement avec un conjoint(e)" autocomplete="off">
+      </label>
+      <label>Père
+        <select id="f-father"></select>
+      </label>
+      <label>Mère
+        <select id="f-mother"></select>
+      </label>
+      <label class="span2">Notes
+        <textarea id="f-notes" rows="3" maxlength="500" placeholder="Facultatif…"></textarea>
+      </label>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" id="btn-cancel">Annuler</button>
+      <button type="submit" class="primary" id="btn-save">Enregistrer</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+'use strict';
+/* ===== Données & stockage local ===== */
+const STORAGE_KEY = 'md-genealogie-v1';
+const YEAR_KEY = 'md-genealogie-annee';
+const THEME_KEY = 'md-genealogie-theme';
+const THEMES = ['parchemin', 'sombre', 'foret', 'ocean', 'automne', 'pierre'];
+const $ = (s) => document.querySelector(s);
+
+let persons = [];
+let genCache = new Map();
+let editingId = null;
+let gameYear = 1500;
+
+/* Année actuelle du jeu (le jeu Medieval Dynasty démarre en 1500) */
+function loadGameYear(){
+  const v = parseInt(localStorage.getItem(YEAR_KEY), 10);
+  gameYear = (v >= 1500 && v <= 9999) ? v : 1500;
+}
+/* Thème de couleurs global (presets inclus) */
+function applyTheme(name){
+  const th = THEMES.includes(name) ? name : 'parchemin';
+  if(th === 'parchemin') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', th);
+  $('#theme-select').value = th;
+  try{ localStorage.setItem(THEME_KEY, th); }catch(e){}
+}
+
+function uid(){ return 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function getPerson(id){ return id ? persons.find(p => p.id === id) || null : null; }
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* Valide, complète et répare une liste de villageois (utilisée au chargement et à l'import) */
+function normalize(list){
+  const out = list.map(raw => ({
+    id: String(raw.id || uid()),
+    name: String(raw.name || 'Sans nom').slice(0, 80),
+    gender: raw.gender === 'F' ? 'F' : 'M',
+    status: raw.status === 'dead' ? 'dead' : 'alive',
+    birth: String(raw.birth || raw.born || '').replace(/\D/g, '').slice(0, 4),
+    death: String(raw.death || '').replace(/\D/g, '').slice(0, 4),
+    marriage: String(raw.marriage || '').replace(/\D/g, '').slice(0, 4),
+    notes: String(raw.notes || '').slice(0, 600),
+    father: raw.father ? String(raw.father) : null,
+    mother: raw.mother ? String(raw.mother) : null,
+    spouse: raw.spouse ? String(raw.spouse) : null
+  }));
+  const seen = new Set();
+  out.forEach(p => { while(seen.has(p.id)) p.id = uid(); seen.add(p.id); });
+  const ids = new Set(out.map(p => p.id));
+  out.forEach(p => {
+    if(p.father && !ids.has(p.father)) p.father = null;
+    if(p.mother && !ids.has(p.mother)) p.mother = null;
+    if(p.id === p.father || p.id === p.mother || p.id === p.spouse) p.spouse = null;
+    if(p.spouse && !ids.has(p.spouse)) p.spouse = null;
+    if(p.death) p.status = 'dead';
+  });
+  out.forEach(p => {
+    if(!p.spouse) return;
+    const sp = out.find(x => x.id === p.spouse);
+    if(!sp){ p.spouse = null; return; }
+    if(sp.spouse && sp.spouse !== p.id){
+      const other = out.find(x => x.id === sp.spouse);
+      if(other && other.spouse === sp.id){ p.spouse = null; return; }
+    }
+    sp.spouse = p.id;
+    /* l'année de mariage est partagée par le couple */
+    if(p.marriage) sp.marriage = p.marriage;
+    else if(sp.marriage) p.marriage = sp.marriage;
+  });
+  out.forEach(p => { if(!p.spouse) p.marriage = ''; });
+  return out;
+}
+
+function save(){
+  genCache = new Map();
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(persons)); }catch(e){}
+}
+function load(){
+  persons = [];
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(Array.isArray(parsed)) persons = normalize(parsed);
+    }
+  }catch(e){ persons = []; }
+  genCache = new Map();
+}
+
+/* ===== Génération & liens familiaux ===== */
+function generationOf(id, seen){
+  if(genCache.has(id)) return genCache.get(id);
+  seen = seen || new Set();
+  if(seen.has(id)) return 0;
+  seen.add(id);
+  const p = getPerson(id);
+  if(!p) return 0;
+  const parents = [getPerson(p.father), getPerson(p.mother)].filter(Boolean);
+  const g = parents.length ? Math.max(...parents.map(x => generationOf(x.id, seen))) + 1 : 0;
+  genCache.set(id, g);
+  return g;
+}
+function hasParent(p){ return !!getPerson(p.father) || !!getPerson(p.mother); }
+function childrenOf(id){ return persons.filter(c => c.father === id || c.mother === id); }
+function spouseOf(p){ return getPerson(p.spouse); }
+function parentNames(p){
+  const parts = [getPerson(p.father), getPerson(p.mother)].filter(Boolean).map(x => x.name);
+  return parts.length ? parts.join(' & ') : '—';
+}
+/* Âge : les vivants sont calculés par rapport à l'année actuelle du jeu,
+   les défunts entre leur naissance et leur année de mort. */
+function ageOf(p){
+  const b = parseInt(p.birth, 10);
+  if(!b) return null;
+  if(p.status === 'dead'){
+    const d = parseInt(p.death, 10);
+    return (d && d >= b) ? d - b : null;
+  }
+  return gameYear >= b ? gameYear - b : null;
+}
+function ageCell(p){
+  const a = ageOf(p);
+  if(a === null) return '<span class="muted">—</span>';
+  return a + ' ans' + (p.status === 'dead' ? ' <span class="muted">(†)</span>' : '');
+}
+/* true si `candidateId` est un descendant (ou lui-même) de `ancestorId` */
+function isDescendantOf(candidateId, ancestorId){
+  const queue = [candidateId];
+  const seen = new Set();
+  while(queue.length){
+    const id = queue.shift();
+    if(id === ancestorId) return true;
+    if(seen.has(id)) continue;
+    seen.add(id);
+    const p = getPerson(id);
+    if(p){
+      if(p.father) queue.push(p.father);
+      if(p.mother) queue.push(p.mother);
+    }
+  }
+  return false;
+}
+/* ===== Vue : liste des villageois ===== */
+function renderList(){
+  const q = $('#search').value.trim().toLowerCase();
+  const st = $('#filter-status').value;
+  const isEmpty = persons.length === 0;
+  $('#list-empty').hidden = !isEmpty;
+  $('#list-table').hidden = isEmpty;
+  if(isEmpty) return;
+  let rows = persons.slice().sort((a, b) =>
+    generationOf(a.id) - generationOf(b.id) || a.name.localeCompare(b.name, 'fr'));
+  if(q) rows = rows.filter(p => p.name.toLowerCase().includes(q));
+  if(st) rows = rows.filter(p => p.status === st);
+  const body = $('#list-body');
+  if(!rows.length){
+    body.innerHTML = '<tr><td colspan="10" class="muted">Aucun résultat.</td></tr>';
+    return;
+  }
+  body.innerHTML = rows.map(p => {
+    const sp = spouseOf(p);
+    const kids = childrenOf(p.id);
+    const kidNames = kids.map(k => k.name).join(', ');
+    return '<tr>' +
+      '<td><b>' + esc(p.name) + '</b>' + (p.birth ? '<br><span class="muted">' + (p.gender === 'M' ? 'né' : 'née') + ' en ' + esc(p.birth) + '</span>' : '') + '</td>' +
+      '<td class="' + (p.gender === 'M' ? 'gender-m' : 'gender-f') + '">' + (p.gender === 'M' ? '♂ Homme' : '♀ Femme') + '</td>' +
+      '<td>' + (generationOf(p.id) + 1) + '</td>' +
+      '<td>' + ageCell(p) + '</td>' +
+      '<td><span class="badge ' + p.status + '">' + (p.status === 'alive' ? 'Vivant' : 'Décédé') + '</span></td>' +
+      '<td>' + (p.death ? esc(p.death) : '<span class="muted">—</span>') + '</td>' +
+      '<td>' + (sp ? esc(sp.name) + ((p.marriage || sp.marriage)
+        ? ' <span class="muted">(m. ' + esc(p.marriage || sp.marriage) + ')</span>' : '')
+        : '<span class="muted">—</span>') + '</td>' +
+      '<td>' + esc(parentNames(p)) + '</td>' +
+      '<td title="' + esc(kidNames) + '">' + (kids.length ? esc(kidNames) : '<span class="muted">—</span>') + '</td>' +
+      '<td class="actions">' +
+        '<button data-action="edit" data-id="' + p.id + '" title="Modifier">✏️</button>' +
+        '<button data-action="delete" data-id="' + p.id + '" title="Supprimer">🗑️</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+/* ===== Vue : statistiques ===== */
+function countCouples(){
+  const seen = new Set();
+  let n = 0;
+  persons.forEach(p => {
+    if(p.spouse && getPerson(p.spouse) && !seen.has(p.id)){
+      seen.add(p.id);
+      seen.add(p.spouse);
+      n++;
+    }
+  });
+  return n;
+}
+function countFamilies(){
+  /* Une famille = un foyer sans ascendance. Un conjoint qui a épousé la famille
+     (sans parent mais dont le conjoint a des parents) appartient à la famille de
+     ce dernier et ne crée pas une famille à part. */
+  const roots = persons.filter(p => !hasParent(p) && (!spouseOf(p) || !hasParent(spouseOf(p))));
+  const taken = new Set();
+  let n = 0;
+  roots.forEach(p => {
+    if(taken.has(p.id)) return;
+    taken.add(p.id);
+    n++;
+    const sp = spouseOf(p);
+    if(sp) taken.add(sp.id);
+  });
+  return n;
+}
+function renderStats(){
+  const total = persons.length;
+  const alive = persons.filter(p => p.status === 'alive').length;
+  const gens = total ? Math.max(...persons.map(p => generationOf(p.id))) + 1 : 0;
+  const cards = [
+    [gameYear, 'Année du jeu'],
+    [total, 'Villageois'],
+    [alive, 'Vivants'],
+    [total - alive, 'Décédés'],
+    [countCouples(), 'Couples'],
+    [countFamilies(), 'Familles'],
+    [gens, 'Générations']
+  ].map(c => '<div class="stat"><div class="num">' + c[0] + '</div><div class="lbl">' + c[1] + '</div></div>').join('');
+  $('#stats').innerHTML = cards;
+  if(!total){
+    $('#stats-extra').innerHTML = '<div class="empty">Aucune donnée à afficher.</div>';
+    return;
+  }
+  /* Panneau : les mariages du domaine */
+  const seenM = new Set();
+  const mRows = [];
+  persons.forEach(p => {
+    const sp = spouseOf(p);
+    if(!sp || seenM.has(p.id)) return;
+    seenM.add(p.id);
+    seenM.add(sp.id);
+    const y = p.marriage || sp.marriage;
+    mRows.push('<tr><td>' + esc(p.name) + ' &amp; ' + esc(sp.name) + '</td><td>' +
+      (y ? esc(y) : '<span class="muted">—</span>') + '</td></tr>');
+  });
+  $('#stats-extra').innerHTML = mRows.length
+    ? '<div class="panel"><h3>Mariages</h3><table><thead><tr><th>Couple</th><th>Année</th></tr></thead><tbody>' +
+      mRows.join('') + '</tbody></table></div>'
+    : '<div class="empty">Aucun mariage à afficher.</div>';
+}
+/* ===== Vue : arbre généalogique ===== */
+let rendered = new Set();
+
+function renderTreeOptions(){
+  const sel = $('#tree-root');
+  const prev = sel.value;
+  const sorted = persons.slice().sort((a, b) =>
+    generationOf(a.id) - generationOf(b.id) || a.name.localeCompare(b.name, 'fr'));
+  sel.innerHTML = '<option value="">Toutes les familles</option>' +
+    sorted.map(p => '<option value="' + p.id + '">' + esc(p.name) +
+      ' (génération ' + (generationOf(p.id) + 1) + ')</option>').join('');
+  sel.value = persons.some(p => p.id === prev) ? prev : '';
+}
+
+function nodeSubtree(p){
+  if(!p || rendered.has(p.id)) return '';
+  rendered.add(p.id);
+  const sp = spouseOf(p);
+  if(sp) rendered.add(sp.id);
+  const kids = persons.filter(c => !rendered.has(c.id) &&
+    (c.father === p.id || c.mother === p.id || (sp && (c.father === sp.id || c.mother === sp.id))));
+  const kidsHtml = kids.map(k => nodeSubtree(k)).join('');
+  /* méta : mariage + rappel des décès du couple */
+  const metaBits = [];
+  const mYear = p.marriage || (sp ? sp.marriage : '');
+  if(mYear) metaBits.push('⚭ ' + esc(mYear));
+  const deadNames = [];
+  if(p.status === 'dead') deadNames.push(esc(p.name) + (p.death ? ' (' + esc(p.death) + ')' : ''));
+  if(sp && sp.status === 'dead') deadNames.push(esc(sp.name) + (sp.death ? ' (' + esc(sp.death) + ')' : ''));
+  if(deadNames.length) metaBits.push('☠ ' + deadNames.join(', '));
+  const partner = sp
+    ? ' <span class="partner">+ <span class="' + (sp.gender === 'F' ? 'gender-f' : 'gender-m') + '">' +
+      (sp.gender === 'F' ? '♀' : '♂') + '</span> ' + esc(sp.name) + '</span>'
+    : '';
+  const cls = 'node' + (p.status === 'dead' ? ' dead' : '');
+  const title = [p.notes, sp ? sp.notes : ''].filter(Boolean).join(' — ');
+  const node = '<div class="' + cls + '" title="' + esc(title) + '">' +
+      '<div class="names"><span class="' + (p.gender === 'M' ? 'gender-m' : 'gender-f') + '">' +
+      (p.gender === 'M' ? '♂' : '♀') + '</span> ' + esc(p.name) + partner + '</div>' +
+      (metaBits.length ? '<div class="meta">' + metaBits.join(' · ') + '</div>' : '') +
+    '</div>';
+  return '<li>' + node + (kidsHtml ? '<ul>' + kidsHtml + '</ul>' : '') + '</li>';
+}
+
+function renderTree(){
+  const box = $('#tree');
+  if(!persons.length){
+    box.innerHTML = '<div class="empty">Aucune famille à afficher.</div>';
+    $('#tree-info').textContent = '';
+    return;
+  }
+  rendered = new Set();
+  let html = '';
+  const rootId = $('#tree-root').value;
+  if(rootId){
+    const p = getPerson(rootId);
+    html = p ? nodeSubtree(p) : '';
+    $('#tree-info').textContent = p ? 'Sous-arbre de ' + p.name : '';
+  }else{
+    /* Ancrage : seuls les foyers sans ascendance ouvrent une branche ; un
+       conjoint qui a épousé la famille est rattaché à la branche de son conjoint. */
+    persons.filter(p => !hasParent(p) && (!spouseOf(p) || !hasParent(spouseOf(p))))
+      .forEach(p => { html += nodeSubtree(p); });
+    persons.forEach(p => { html += nodeSubtree(p); });
+    $('#tree-info').textContent = persons.length + ' villageois';
+  }
+  box.innerHTML = html
+    ? '<ul>' + html + '</ul>'
+    : '<div class="empty">Aucune famille à afficher.</div>';
+}
+/* ===== Ajout / modification d'un villageois ===== */
+const dlg = $('#dlg');
+
+function fillSelect(sel, items, current, labelFn){
+  const opts = items.slice();
+  if(current && !opts.some(x => x.id === current)){
+    const cp = getPerson(current);
+    if(cp) opts.push(cp);
+  }
+  sel.innerHTML = '<option value="">— Aucun —</option>' +
+    opts.map(x => '<option value="' + x.id + '">' + esc(labelFn(x)) + '</option>').join('');
+  sel.value = (current && opts.some(x => x.id === current)) ? current : '';
+}
+
+function openEdit(id){
+  editingId = id || null;
+  const p = id ? getPerson(id) : null;
+  $('#dlg-title').textContent = p ? 'Modifier : ' + p.name : 'Ajouter un villageois';
+  $('#f-name').value = p ? p.name : '';
+  $('#f-gender').value = p ? p.gender : 'M';
+  $('#f-status').value = p ? p.status : 'alive';
+  $('#f-birth').value = p ? p.birth : '';
+  $('#f-death').value = p ? p.death : '';
+  $('#f-marriage').value = p ? p.marriage : '';
+  $('#f-notes').value = p ? p.notes : '';
+  /* pas de descendant (ni soi-même) comme parent */
+  const parentPool = p ? persons.filter(x => !isDescendantOf(x.id, p.id)) : persons;
+  fillSelect($('#f-father'), parentPool.filter(x => x.gender === 'M'), p ? p.father : null, x => x.name);
+  fillSelect($('#f-mother'), parentPool.filter(x => x.gender === 'F'), p ? p.mother : null, x => x.name);
+  const spousePool = persons.filter(x =>
+    p ? (x.id !== p.id && (!x.spouse || x.spouse === p.id || x.id === p.spouse)) : !x.spouse);
+  const labelSpouse = x => (x.gender === 'F' ? '♀ ' : '♂ ') + x.name;
+  fillSelect($('#f-spouse'), spousePool, p ? p.spouse : null, labelSpouse);
+  dlg.showModal();
+  $('#f-name').focus();
+}
+
+function applySpouse(p, newSpouseId, marriageYear){
+  const year = newSpouseId ? marriageYear : '';
+  if(p.spouse && p.spouse !== newSpouseId){
+    const old = getPerson(p.spouse);
+    if(old && old.spouse === p.id){ old.spouse = null; old.marriage = ''; }
+  }
+  p.spouse = newSpouseId || null;
+  p.marriage = year;
+  if(newSpouseId){
+    const sp = getPerson(newSpouseId);
+    if(sp){
+      if(sp.spouse && sp.spouse !== p.id){
+        const prev = getPerson(sp.spouse);
+        if(prev && prev.spouse === sp.id){ prev.spouse = null; prev.marriage = ''; }
+      }
+      sp.spouse = p.id;
+      sp.marriage = year;
+    }
+  }
+}
+
+$('#form').addEventListener('submit', e => {
+  const name = $('#f-name').value.trim();
+  if(!name){ e.preventDefault(); return; }
+  const data = {
+    name: name,
+    gender: $('#f-gender').value,
+    status: $('#f-status').value,
+    birth: $('#f-birth').value.replace(/\D/g, '').slice(0, 4),
+    death: $('#f-death').value.replace(/\D/g, '').slice(0, 4),
+    marriage: $('#f-marriage').value.replace(/\D/g, '').slice(0, 4),
+    notes: $('#f-notes').value.trim(),
+    father: $('#f-father').value || null,
+    mother: $('#f-mother').value || null,
+    spouse: $('#f-spouse').value || null
+  };
+  /* Cohérence : une année de mort implique le statut Décédé, et un Vivant n'a pas de date de mort */
+  if(data.death) data.status = 'dead';
+  else if(data.status === 'alive') data.death = '';
+  /* Cohérence des dates : la naissance ne peut pas suivre la mort */
+  if(data.birth && data.death && parseInt(data.birth, 10) > parseInt(data.death, 10)){
+    e.preventDefault();
+    alert('La date de naissance (' + data.birth +
+      ') est postérieure à la date de mort (' + data.death + ').');
+    return;
+  }
+  let p;
+  if(editingId && getPerson(editingId)){
+    p = getPerson(editingId);
+    Object.assign(p, data);
+  }else{
+    p = Object.assign({ id: uid() }, data);
+    persons.push(p);
+  }
+  applySpouse(p, data.spouse, data.marriage);
+  /* sécurité : empêcher un cycle père/fils */
+  if(p.father && isDescendantOf(p.father, p.id)) p.father = null;
+  if(p.mother && isDescendantOf(p.mother, p.id)) p.mother = null;
+  save();
+  renderAll();
+});
+
+function deletePerson(id){
+  const p = getPerson(id);
+  if(!p) return;
+  if(!confirm('Supprimer « ' + p.name + ' » ?\nSes liens familiaux seront retirés.')) return;
+  persons = persons.filter(x => x.id !== id);
+  persons.forEach(x => {
+    if(x.father === id) x.father = null;
+    if(x.mother === id) x.mother = null;
+    if(x.spouse === id){ x.spouse = null; x.marriage = ''; }
+  });
+  save();
+  renderAll();
+}
+
+/* ===== Famille d'exemple ===== */
+function loadSample(){
+  if(persons.length && !confirm('Remplacer les données actuelles par la famille d\'exemple ?')) return;
+  persons = normalize([
+    { id:'s1', name:'Guillaume', gender:'M', status:'dead', birth:'1434', death:'1502', spouse:'s2', marriage:'1454', notes:'Fondateur du domaine.' },
+    { id:'s2', name:'Alix', gender:'F', status:'dead', birth:'1437', death:'1509', spouse:'s1', marriage:'1454' },
+    { id:'s3', name:'Henri', gender:'M', status:'alive', birth:'1455', father:'s1', mother:'s2', spouse:'s4', marriage:'1476' },
+    { id:'s4', name:'Béatrice', gender:'F', status:'alive', birth:'1460', spouse:'s3', marriage:'1476' },
+    { id:'s5', name:'Marguerite', gender:'F', status:'alive', birth:'1482', father:'s3', mother:'s4' },
+    { id:'s6', name:'Thomas', gender:'M', status:'alive', birth:'1478', father:'s3', mother:'s4', spouse:'s7', marriage:'1499' },
+    { id:'s7', name:'Camellie', gender:'F', status:'alive', birth:'1480', spouse:'s6', marriage:'1499' },
+    { id:'s8', name:'Lucas', gender:'M', status:'alive', birth:'1500', father:'s6', mother:'s7' },
+    { id:'s9', name:'Emma', gender:'F', status:'alive', birth:'1502', father:'s6', mother:'s7' },
+    { id:'s10', name:'Gautier', gender:'M', status:'alive', birth:'1475', notes:'Venu d\'un village voisin.' }
+  ]);
+  save();
+  renderAll();
+}
+/* ===== Export / Import / Réinitialisation ===== */
+function exportJson(){
+  const data = { app:'medieval-dynasty-genealogie', version:1, exported:new Date().toISOString(), persons:persons };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'genealogie-medieval-dynasty-' + new Date().toISOString().slice(0, 10) + '.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function importFile(file){
+  if(!file) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try{
+      const parsed = JSON.parse(r.result);
+      const list = Array.isArray(parsed)
+        ? parsed
+        : (parsed && Array.isArray(parsed.persons) ? parsed.persons : null);
+      if(!list) throw new Error('structure inattendue (tableau "persons" introuvable)');
+      if(persons.length && !confirm('Remplacer les ' + persons.length +
+        ' villageois actuels par ' + list.length + ' villageois importés ?')) return;
+      persons = normalize(list);
+      save();
+      renderAll();
+      alert('Import réussi : ' + persons.length + ' villageois.');
+    }catch(err){
+      alert('Import impossible : ' + err.message);
+    }
+  };
+  r.onerror = () => alert('Lecture du fichier impossible.');
+  r.readAsText(file);
+}
+function resetAll(){
+  if(!persons.length) return;
+  if(!confirm('Supprimer TOUTES les données de généalogie ?')) return;
+  if(!confirm('Cette action est irréversible. Continuer ?')) return;
+  persons = [];
+  save();
+  renderAll();
+}
+
+/* ===== Navigation & initialisation ===== */
+function showView(name){
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.view === name));
+  ['list', 'tree', 'stats'].forEach(v => { $('#view-' + v).hidden = (v !== name); });
+  if(name === 'tree'){ renderTreeOptions(); renderTree(); }
+}
+function renderAll(){
+  renderList();
+  renderTreeOptions();
+  renderTree();
+  renderStats();
+}
+
+function init(){
+  load();
+  loadGameYear();
+  $('#game-year').value = gameYear;
+  let savedTheme = 'parchemin';
+  try{ savedTheme = localStorage.getItem(THEME_KEY) || 'parchemin'; }catch(e){}
+  applyTheme(savedTheme);
+  $('#theme-select').addEventListener('change', e => applyTheme(e.target.value));
+  document.querySelectorAll('.tab').forEach(b =>
+    b.addEventListener('click', () => showView(b.dataset.view)));
+  $('#btn-add').addEventListener('click', () => openEdit(null));
+  $('#btn-sample').addEventListener('click', loadSample);
+  $('#search').addEventListener('input', renderList);
+  $('#filter-status').addEventListener('change', renderList);
+  $('#list-body').addEventListener('click', e => {
+    const b = e.target.closest('button[data-action]');
+    if(!b) return;
+    if(b.dataset.action === 'edit') openEdit(b.dataset.id);
+    else if(b.dataset.action === 'delete') deletePerson(b.dataset.id);
+  });
+  $('#tree-root').addEventListener('change', renderTree);
+  $('#btn-cancel').addEventListener('click', () => dlg.close());
+  $('#btn-export').addEventListener('click', exportJson);
+  $('#btn-import').addEventListener('click', () => $('#file-import').click());
+  $('#file-import').addEventListener('change', e => {
+    importFile(e.target.files[0]);
+    e.target.value = '';
+  });
+  $('#btn-reset').addEventListener('click', resetAll);
+  $('#game-year').addEventListener('change', () => {
+    const v = parseInt($('#game-year').value, 10);
+    gameYear = (v >= 1500 && v <= 9999) ? v : 1500;
+    $('#game-year').value = gameYear;
+    try{ localStorage.setItem(YEAR_KEY, String(gameYear)); }catch(e){}
+    renderList();
+    renderStats();
+  });
+  renderAll();
+  showView('list');
+}
+init();
+
+
+
+</script>
+</body>
+</html>
