@@ -150,11 +150,24 @@ dialog h2{margin:0;padding:14px 16px;background:var(--brown-dark);color:#f0e2c4;
   <section id="view-list">
     <div class="toolbar">
       <input type="search" id="search" placeholder="🔎 Rechercher un villageois…">
-      <select id="filter-status">
+      <select id="filter-status" title="Filtrer par statut">
         <option value="">Tous les statuts</option>
         <option value="alive">Vivants</option>
         <option value="dead">Décédés</option>
       </select>
+      <label class="sort-wrap" title="Trier la liste">Trier&nbsp;
+        <select id="sort-mode" title="Trier">
+          <option value="default">Trier par défaut (génération)</option>
+          <option value="name">Nom A → Z</option>
+          <option value="nameZ">Nom Z → A</option>
+          <option value="gen">Génération 1 → N</option>
+          <option value="genZ">Génération N → 1</option>
+          <option value="alive">Vivants d'abord (par génération)</option>
+          <option value="dead">Décédés d'abord (par génération)</option>
+          <option value="birth">Date de naissance anciens → récents</option>
+          <option value="marriage">Mariage anciens → récents</option>
+        </select>
+      </label>
       <span class="spacer"></span>
       <button id="btn-sample" title="Charger une famille d'exemple">📜 Exemple</button>
       <button id="btn-add" class="primary">＋ Ajouter un villageois</button>
@@ -385,6 +398,50 @@ function isDescendantOf(candidateId, ancestorId){
   return false;
 }
 /* ===== Vue : liste des villageois ===== */
+/* ===== Tri ===== */
+const SORT_DEFAULT = 'default';
+const SORT_MODES = {
+  default: 'Trier par défaut (génération)',
+  name:    'Nom (A → Z)',
+  nameZ:   'Nom (Z → A)',
+  gen:     'Génération (1 → N)',
+  genZ:    'Génération (N → 1)',
+  alive:   'Vivants d\'abord (par génération)',
+  dead:    'Décédés d\'abord (par génération)',
+  birth:   'Date de naissance (anciens → récents)',
+  marriage:'Mariage (anciens → récents)'
+};
+let sortMode = SORT_DEFAULT; // 'default' | 'name' | 'nameZ' | 'gen' | 'genZ' | 'alive' | 'dead' | 'birth' | 'marriage'
+
+function renderSorts(){
+  const sel = $('#sort-mode');
+  sel.innerHTML = Object.entries(SORT_MODES).map(([k, v]) =>
+    '<option value="' + k + '">' + v + '</option>').join('');
+  sel.value = sortMode;
+}
+
+function sortPersons(persons, mode){
+  const arr = persons.slice();
+  const cmp = (a, b) => {
+    switch(mode){
+      case 'name':    return a.name.localeCompare(b.name, 'fr');
+      case 'nameZ':   return b.name.localeCompare(a.name, 'fr');
+      case 'gen':     return generationOf(a.id) - generationOf(b.id);
+      case 'genZ':    return generationOf(b.id) - generationOf(a.id);
+      case 'alive':   return (a.status === 'alive' ? 0 : 1) - (b.status === 'alive' ? 0 : 1)
+                     || generationOf(a.id) - generationOf(b.id);
+      case 'dead':    return (a.status === 'dead' ? 0 : 1) - (b.status === 'dead' ? 0 : 1)
+                     || generationOf(a.id) - generationOf(b.id);
+      case 'birth':   return (parseInt(a.birth, 10) || 99999) - (parseInt(b.birth, 10) || 99999);
+      case 'marriage':return (parseInt(a.marriage || '99999', 10) || 99999)
+                     - (parseInt(b.marriage || '99999') || 99999);
+      default:        return generationOf(a.id) - generationOf(b.id)
+                     || a.name.localeCompare(b.name, 'fr');
+    }
+  };
+  return arr.sort(cmp);
+}
+
 function renderList(){
   const q = $('#search').value.trim().toLowerCase();
   const st = $('#filter-status').value;
@@ -392,8 +449,7 @@ function renderList(){
   $('#list-empty').hidden = !isEmpty;
   $('#list-table').hidden = isEmpty;
   if(isEmpty) return;
-  let rows = persons.slice().sort((a, b) =>
-    generationOf(a.id) - generationOf(b.id) || a.name.localeCompare(b.name, 'fr'));
+  let rows = sortPersons(persons, sortMode);
   if(q) rows = rows.filter(p => p.name.toLowerCase().includes(q));
   if(st) rows = rows.filter(p => p.status === st);
   const body = $('#list-body');
