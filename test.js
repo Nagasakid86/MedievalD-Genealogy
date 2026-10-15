@@ -239,6 +239,68 @@ const tests = `
   assert(localStorage.getItem('md-genealogie-annee') === '1500',
     'Année du jeu (1500) persistée');
 
+  // 12. Tri : sortModes appliqués directement + sélecteur branché
+  loadSample(); // 10 villageois, ordre d'origine
+  const sortedNames = mode => sortPersons(persons, mode).map(x => x.name);
+  assert(sortedNames('name')[0] === 'Alix', 'Tri Nom A→Z : Alix en premier');
+  assert(sortedNames('nameZ')[0] === 'Thomas', 'Tri Nom Z→A : Thomas en premier');
+  const gAsc = sortPersons(persons, 'gen').map(x => generationOf(x.id));
+  assert(gAsc[0] === 0 && gAsc[gAsc.length - 1] === 3, 'Tri Génération 1→N');
+  const gDesc = sortPersons(persons, 'genZ').map(x => generationOf(x.id));
+  assert(gDesc[0] === 3 && gDesc[gDesc.length - 1] === 0, 'Tri Génération N→1');
+  assert(sortedNames('birth')[0] === 'Guillaume', 'Tri Naissance : le plus ancien (1434) en premier');
+  assert(sortedNames('marriage')[0] === 'Guillaume', 'Tri Mariage : le plus ancien (1454) en premier');
+  assert(sortPersons(persons, 'dead')[0].status === 'dead', 'Tri Décédés en premier');
+  assert(sortPersons(persons, 'alive')[0].status === 'alive', 'Tri Vivants en premier');
+  assert(sortPersons(persons, 'inconnu')[0].name === 'Alix', 'Mode inconnu → tri par défaut (génération + A→Z)');
+  const rowNames = () => document.querySelector('#list-body').innerHTML
+    .split('<b>').slice(1).map(s => s.split('</b>')[0]);
+  document.querySelector('#sort-mode').value = 'nameZ';
+  document.querySelector('#sort-mode').dispatch('change');
+  assert(rowNames()[0] === 'Thomas', 'Sélecteur de tri branché : Z→A appliqué à la liste');
+  document.querySelector('#sort-mode').value = 'default';
+  document.querySelector('#sort-mode').dispatch('change');
+  assert(rowNames()[0] === 'Alix' && sortMode === 'default',
+    'Retour au tri par défaut via le sélecteur');
+  assert(document.querySelector('#family-people').innerHTML.indexOf('Guillaume') >= 0,
+    'Datalist des proches peuplée avec les noms');
+
+  // 13. Liens familiaux par nom saisi librement (datalist)
+  editingId = null;
+  document.querySelector('#f-name').value = 'Pierre';
+  document.querySelector('#f-gender').value = 'M';
+  document.querySelector('#f-status').value = 'alive';
+  document.querySelector('#f-birth').value = '1470';
+  document.querySelector('#f-death').value = '';
+  document.querySelector('#f-marriage').value = '';
+  document.querySelector('#f-notes').value = '';
+  document.querySelector('#f-father').value = 'lucas';    // nom en minuscules
+  document.querySelector('#f-mother').value = 'BÉATRICE'; // casse différente
+  document.querySelector('#f-spouse').value = 'Emma';
+  document.querySelector('#form').dispatch('submit');
+  const pierre = persons.find(x => x.name === 'Pierre');
+  assert(!!pierre && pierre.father === 's8', 'Père résolu par nom (« lucas » → s8, Lucas)');
+  assert(pierre.mother === 's4', 'Mère résolue par nom (« BÉATRICE » → s4)');
+  assert(pierre.spouse === 's9' && getPerson('s9').spouse === pierre.id,
+    'Conjointe résolue par nom (« Emma ») avec lien réciproque');
+
+  // 13bis. Saisie invalide : nom inconnu ou mauvais genre → refus
+  openEdit(pierre.id);
+  assert(document.querySelector('#f-father').value === 'Lucas',
+    'Modification : champ père pré-rempli par le nom (pas par identifiant)');
+  editingId = null;
+  document.querySelector('#f-name').value = 'Jean';
+  document.querySelector('#f-father').value = 'Inconnu Total';
+  document.querySelector('#f-mother').value = '';
+  document.querySelector('#f-spouse').value = '';
+  const evUnknown = document.querySelector('#form').dispatch('submit');
+  assert(evUnknown.defaultPrevented === true, 'Parent introuvable → saisie bloquée');
+  assert(!persons.some(x => x.name === 'Jean'), 'Aucun villageois ajouté sur nom inconnu');
+  document.querySelector('#f-father').value = 'Alix'; // femme désignée comme père
+  const evGender = document.querySelector('#form').dispatch('submit');
+  assert(evGender.defaultPrevented === true, 'Femme désignée comme père → saisie bloquée');
+  assert(!persons.some(x => x.name === 'Jean'), 'Aucun villageois ajouté sur mauvais genre');
+
   console.log(failed ? '\\n' + failed + ' échec(s)' : '\\nTous les tests sont passés.');
   if(failed) process.exitCode = 1;
 })();

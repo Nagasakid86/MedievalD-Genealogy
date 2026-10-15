@@ -228,20 +228,23 @@ dialog h2{margin:0;padding:14px 16px;background:var(--brown-dark);color:#f0e2c4;
       <label>Date de naissance
         <input id="f-birth" type="number" min="1" max="9999" placeholder="ex. 1470" autocomplete="off">
       </label>
+      <label>Date de naissance
+        <input id="f-birth" type="number" min="1" max="9999" placeholder="ex. 1470" autocomplete="off">
+      </label>
       <label>Année de mort
         <input id="f-death" type="number" min="1" max="9999" placeholder="ex. 1523 (départ : 1500)" autocomplete="off">
       </label>
       <label>Conjoint(e)
-        <select id="f-spouse"></select>
+        <input id="f-spouse" list="family-people" placeholder="Personne / choisissez dans la liste" autocomplete="off">
       </label>
       <label>Année de mariage
         <input id="f-marriage" type="number" min="1" max="9999" placeholder="ex. 1478" title="Uniquement avec un conjoint(e)" autocomplete="off">
       </label>
       <label>Père
-        <select id="f-father"></select>
+        <input id="f-father" list="family-people" placeholder="Tapez un nom ou choisissez dans la liste" autocomplete="off">
       </label>
       <label>Mère
-        <select id="f-mother"></select>
+        <input id="f-mother" list="family-people" placeholder="Tapez un nom ou choisissez dans la liste" autocomplete="off">
       </label>
       <label class="span2">Notes
         <textarea id="f-notes" rows="3" maxlength="500" placeholder="Facultatif…"></textarea>
@@ -252,6 +255,7 @@ dialog h2{margin:0;padding:14px 16px;background:var(--brown-dark);color:#f0e2c4;
       <button type="submit" class="primary" id="btn-save">Enregistrer</button>
     </div>
   </form>
+  <datalist id="family-people"></datalist>
 </dialog>
 
 <script>
@@ -434,7 +438,7 @@ function sortPersons(persons, mode){
                      || generationOf(a.id) - generationOf(b.id);
       case 'birth':   return (parseInt(a.birth, 10) || 99999) - (parseInt(b.birth, 10) || 99999);
       case 'marriage':return (parseInt(a.marriage || '99999', 10) || 99999)
-                     - (parseInt(b.marriage || '99999') || 99999);
+                     - (parseInt(b.marriage || '99999', 10) || 99999);
       default:        return generationOf(a.id) - generationOf(b.id)
                      || a.name.localeCompare(b.name, 'fr');
     }
@@ -618,15 +622,12 @@ function renderTree(){
 /* ===== Ajout / modification d'un villageois ===== */
 const dlg = $('#dlg');
 
-function fillSelect(sel, items, current, labelFn){
-  const opts = items.slice();
-  if(current && !opts.some(x => x.id === current)){
-    const cp = getPerson(current);
-    if(cp) opts.push(cp);
-  }
-  sel.innerHTML = '<option value="">— Aucun —</option>' +
-    opts.map(x => '<option value="' + x.id + '">' + esc(labelFn(x)) + '</option>').join('');
-  sel.value = (current && opts.some(x => x.id === current)) ? current : '';
+function fillDatalist(editingPersonId){
+  $('#family-people').innerHTML = persons
+    .filter(x => x.id !== editingPersonId)
+    .map(x => '<option value="' + esc(x.name) + '">' +
+      (x.gender === 'M' ? '♂' : '♀') + (x.birth ? ' · ' + esc(x.birth) : '') + '</option>')
+    .join('');
 }
 
 function openEdit(id){
@@ -640,14 +641,12 @@ function openEdit(id){
   $('#f-death').value = p ? p.death : '';
   $('#f-marriage').value = p ? p.marriage : '';
   $('#f-notes').value = p ? p.notes : '';
-  /* pas de descendant (ni soi-même) comme parent */
-  const parentPool = p ? persons.filter(x => !isDescendantOf(x.id, p.id)) : persons;
-  fillSelect($('#f-father'), parentPool.filter(x => x.gender === 'M'), p ? p.father : null, x => x.name);
-  fillSelect($('#f-mother'), parentPool.filter(x => x.gender === 'F'), p ? p.mother : null, x => x.name);
-  const spousePool = persons.filter(x =>
-    p ? (x.id !== p.id && (!x.spouse || x.spouse === p.id || x.id === p.spouse)) : !x.spouse);
-  const labelSpouse = x => (x.gender === 'F' ? '♀ ' : '♂ ') + x.name;
-  fillSelect($('#f-spouse'), spousePool, p ? p.spouse : null, labelSpouse);
+  /* Champs texte libres : on pré-remplit avec les noms (saisie libre ou liste) */
+  const nameOf = id => { const x = getPerson(id); return x ? x.name : ''; };
+  $('#f-father').value = p && p.father ? nameOf(p.father) : '';
+  $('#f-mother').value = p && p.mother ? nameOf(p.mother) : '';
+  $('#f-spouse').value = p && p.spouse ? nameOf(p.spouse) : '';
+  fillDatalist(p ? p.id : null);
   dlg.showModal();
   $('#f-name').focus();
 }
@@ -673,9 +672,39 @@ function applySpouse(p, newSpouseId, marriageYear){
   }
 }
 
+/* Résout le texte saisi (nom libre ou identifiant) en identifiant de villageois.
+   Retourne null si le champ est vide, undefined si le texte est introuvable. */
+function resolvePersonId(raw, label){
+  const v = String(raw || '').trim();
+  if(!v) return null;
+  if(getPerson(v)) return v;
+  const found = persons.find(x => x.name.toLowerCase() === v.toLowerCase());
+  if(found) return found.id;
+  alert(label + ' introuvable : « ' + v + ' ».\nSaisissez un nom exact ou choisissez-le dans la liste.');
+  return undefined;
+}
+
 $('#form').addEventListener('submit', e => {
   const name = $('#f-name').value.trim();
   if(!name){ e.preventDefault(); return; }
+  const fatherId = resolvePersonId($('#f-father').value, 'Père');
+  const motherId = resolvePersonId($('#f-mother').value, 'Mère');
+  const spouseId = resolvePersonId($('#f-spouse').value, 'Conjoint(e)');
+  if(fatherId === undefined || motherId === undefined || spouseId === undefined){
+    e.preventDefault(); return;
+  }
+  const gf = getPerson(fatherId);
+  if(gf && gf.gender !== 'M'){
+    e.preventDefault();
+    alert('Le père doit être un homme : « ' + gf.name + ' » est une femme.');
+    return;
+  }
+  const gm = getPerson(motherId);
+  if(gm && gm.gender !== 'F'){
+    e.preventDefault();
+    alert('La mère doit être une femme : « ' + gm.name + ' » est un homme.');
+    return;
+  }
   const data = {
     name: name,
     gender: $('#f-gender').value,
@@ -684,9 +713,9 @@ $('#form').addEventListener('submit', e => {
     death: $('#f-death').value.replace(/\D/g, '').slice(0, 4),
     marriage: $('#f-marriage').value.replace(/\D/g, '').slice(0, 4),
     notes: $('#f-notes').value.trim(),
-    father: $('#f-father').value || null,
-    mother: $('#f-mother').value || null,
-    spouse: $('#f-spouse').value || null
+    father: fatherId,
+    mother: motherId,
+    spouse: spouseId
   };
   /* Cohérence : une année de mort implique le statut Décédé, et un Vivant n'a pas de date de mort */
   if(data.death) data.status = 'dead';
@@ -798,6 +827,7 @@ function showView(name){
   if(name === 'tree'){ renderTreeOptions(); renderTree(); }
 }
 function renderAll(){
+  renderSorts();
   renderList();
   renderTreeOptions();
   renderTree();
@@ -818,6 +848,11 @@ function init(){
   $('#btn-sample').addEventListener('click', loadSample);
   $('#search').addEventListener('input', renderList);
   $('#filter-status').addEventListener('change', renderList);
+  $('#sort-mode').addEventListener('change', e => {
+    sortMode = SORT_MODES[e.target.value] ? e.target.value : SORT_DEFAULT;
+    e.target.value = sortMode;
+    renderList();
+  });
   $('#list-body').addEventListener('click', e => {
     const b = e.target.closest('button[data-action]');
     if(!b) return;
