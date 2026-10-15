@@ -17,7 +17,7 @@ Un utilitaire **local**, **léger** et **simple** pour gérer la généalogie de
 - **📅 Année actuelle du jeu** : champ dans l'en-tête, défaut **1500** (année de départ du jeu) — les âges sont calculés automatiquement (vivants → année courante ; défunts → entre naissance et mort)
 - **🎨 Thèmes de couleurs** : 6 presets inclus — 📜 Parchemin (défaut), 🌑 Château nuit, 🌲 Forêt, 🌊 Océan, 🍂 Automne, 🪨 Pierre — commutables depuis l'en-tête et mémorisés
 - **Cohérence automatique** : une année de mort force le statut « Décédé » ; un « Vivant » n'a pas de date de mort ; naissance après mort refusée ; année de mariage effacée sans conjoint
-- **Liens familiaux** : père, mère, conjoint, enfants — les champs père/mère/conjoint acceptent la **saisie directe du nom** (insensible à la casse) ou le choix dans une **liste de suggestions** ; un nom inconnu ou de mauvais genre est refusé avec un message
+- **Liens familiaux** : père, mère, conjoint, enfants — les champs père/mère/conjoint acceptent la **saisie directe du nom** (insensible à la casse) ou le choix dans une **liste de suggestions** filtrée par sexe (Père : hommes, Mère : femmes) ; choisir un parent fait proposer son **co-parent en premier** dans l'autre champ ; un nom inconnu ou de mauvais genre est refusé avec un message
 - **Arbre généalogique** : visualisation par générations, avec possibilité d'afficher le sous-arbre d'une seule personne
 - **Statistiques** : villageois, vivants/décédés, couples, familles, générations, année du jeu, liste des mariages
 - **Protections** : impossible de créer un cycle (fils désigné comme père), liens cassés automatiquement réparés

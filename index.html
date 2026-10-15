@@ -235,16 +235,16 @@ dialog h2{margin:0;padding:14px 16px;background:var(--brown-dark);color:#f0e2c4;
         <input id="f-death" type="number" min="1" max="9999" placeholder="ex. 1523 (départ : 1500)" autocomplete="off">
       </label>
       <label>Conjoint(e)
-        <input id="f-spouse" list="family-people" placeholder="Personne / choisissez dans la liste" autocomplete="off">
+        <input id="f-spouse" list="people-spouse" placeholder="Personne / choisissez dans la liste" autocomplete="off">
       </label>
       <label>Année de mariage
         <input id="f-marriage" type="number" min="1" max="9999" placeholder="ex. 1478" title="Uniquement avec un conjoint(e)" autocomplete="off">
       </label>
       <label>Père
-        <input id="f-father" list="family-people" placeholder="Tapez un nom ou choisissez dans la liste" autocomplete="off">
+        <input id="f-father" list="people-father" placeholder="Tapez un nom ou choisissez dans la liste" autocomplete="off">
       </label>
       <label>Mère
-        <input id="f-mother" list="family-people" placeholder="Tapez un nom ou choisissez dans la liste" autocomplete="off">
+        <input id="f-mother" list="people-mother" placeholder="Tapez un nom ou choisissez dans la liste" autocomplete="off">
       </label>
       <label class="span2">Notes
         <textarea id="f-notes" rows="3" maxlength="500" placeholder="Facultatif…"></textarea>
@@ -255,7 +255,9 @@ dialog h2{margin:0;padding:14px 16px;background:var(--brown-dark);color:#f0e2c4;
       <button type="submit" class="primary" id="btn-save">Enregistrer</button>
     </div>
   </form>
-  <datalist id="family-people"></datalist>
+  <datalist id="people-father"></datalist>
+  <datalist id="people-mother"></datalist>
+  <datalist id="people-spouse"></datalist>
 </dialog>
 
 <script>
@@ -622,12 +624,40 @@ function renderTree(){
 /* ===== Ajout / modification d'un villageois ===== */
 const dlg = $('#dlg');
 
-function fillDatalist(editingPersonId){
-  $('#family-people').innerHTML = persons
-    .filter(x => x.id !== editingPersonId)
-    .map(x => '<option value="' + esc(x.name) + '">' +
-      (x.gender === 'M' ? '♂' : '♀') + (x.birth ? ' · ' + esc(x.birth) : '') + '</option>')
-    .join('');
+function datalistOptions(items){
+  return items.map(x => '<option value="' + esc(x.name) + '">' +
+    (x.gender === 'M' ? '♂' : '♀') + (x.birth ? ' · ' + esc(x.birth) : '') + '</option>').join('');
+}
+/* Candidats au rôle de co-parent : le conjoint en premier lieu, puis l'autre
+   parent des enfants communs (utile si le couple n'est pas déclaré). */
+function coParentCandidates(parentId, excludeId){
+  const fp = getPerson(parentId);
+  if(!fp) return [];
+  const out = [];
+  const sp = spouseOf(fp);
+  if(sp) out.push(sp);
+  childrenOf(fp.id).forEach(c => {
+    const other = getPerson(c.father === fp.id ? c.mother : c.father);
+    if(other && !out.some(x => x.id === other.id)) out.push(other);
+  });
+  return out.filter(x => x.id !== excludeId);
+}
+/* Trois listes distinctes : Père (hommes), Mère (femmes), Conjoint (tous).
+   Le co-parent de l'autre champ déjà saisi est proposé en premier. */
+function fillFamilyDatalists(editingPersonId){
+  const me = editingPersonId ? getPerson(editingPersonId) : null;
+  const usable = x => x.id !== editingPersonId && !(me && isDescendantOf(x.id, me.id));
+  const withPriority = (list, prio) =>
+    prio.concat(list.filter(x => !prio.some(y => y.id === x.id)));
+  const fatherPrio = coParentCandidates(findPersonId($('#f-mother').value), editingPersonId)
+    .filter(x => usable(x) && x.gender === 'M');
+  const motherPrio = coParentCandidates(findPersonId($('#f-father').value), editingPersonId)
+    .filter(x => usable(x) && x.gender === 'F');
+  $('#people-father').innerHTML = datalistOptions(
+    withPriority(persons.filter(x => x.gender === 'M' && usable(x)), fatherPrio));
+  $('#people-mother').innerHTML = datalistOptions(
+    withPriority(persons.filter(x => x.gender === 'F' && usable(x)), motherPrio));
+  $('#people-spouse').innerHTML = datalistOptions(persons.filter(x => x.id !== editingPersonId));
 }
 
 function openEdit(id){
@@ -646,7 +676,7 @@ function openEdit(id){
   $('#f-father').value = p && p.father ? nameOf(p.father) : '';
   $('#f-mother').value = p && p.mother ? nameOf(p.mother) : '';
   $('#f-spouse').value = p && p.spouse ? nameOf(p.spouse) : '';
-  fillDatalist(p ? p.id : null);
+  fillFamilyDatalists(p ? p.id : null);
   dlg.showModal();
   $('#f-name').focus();
 }
@@ -672,14 +702,20 @@ function applySpouse(p, newSpouseId, marriageYear){
   }
 }
 
-/* Résout le texte saisi (nom libre ou identifiant) en identifiant de villageois.
-   Retourne null si le champ est vide, undefined si le texte est introuvable. */
-function resolvePersonId(raw, label){
+/* Recherche silencieuse d'un villageois par identifiant ou nom (casse indifférente) */
+function findPersonId(raw){
   const v = String(raw || '').trim();
   if(!v) return null;
   if(getPerson(v)) return v;
   const found = persons.find(x => x.name.toLowerCase() === v.toLowerCase());
-  if(found) return found.id;
+  return found ? found.id : null;
+}
+/* Comme findPersonId, mais alerte et empêche l'enregistrement si le texte est introuvable */
+function resolvePersonId(raw, label){
+  const v = String(raw || '').trim();
+  if(!v) return null;
+  const id = findPersonId(v);
+  if(id) return id;
   alert(label + ' introuvable : « ' + v + ' ».\nSaisissez un nom exact ou choisissez-le dans la liste.');
   return undefined;
 }
@@ -848,6 +884,9 @@ function init(){
   $('#btn-sample').addEventListener('click', loadSample);
   $('#search').addEventListener('input', renderList);
   $('#filter-status').addEventListener('change', renderList);
+  /* Choisir un père fait proposer le co-parent en premier pour la mère (et inversement) */
+  $('#f-father').addEventListener('change', () => fillFamilyDatalists(editingId));
+  $('#f-mother').addEventListener('change', () => fillFamilyDatalists(editingId));
   $('#sort-mode').addEventListener('change', e => {
     sortMode = SORT_MODES[e.target.value] ? e.target.value : SORT_DEFAULT;
     e.target.value = sortMode;

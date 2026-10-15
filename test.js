@@ -262,8 +262,29 @@ const tests = `
   document.querySelector('#sort-mode').dispatch('change');
   assert(rowNames()[0] === 'Alix' && sortMode === 'default',
     'Retour au tri par défaut via le sélecteur');
-  assert(document.querySelector('#family-people').innerHTML.indexOf('Guillaume') >= 0,
-    'Datalist des proches peuplée avec les noms');
+  // 12bis. Datalists par genre + priorité co-parent
+  openEdit(null);
+  const firstOpt = html => html.split('<option value="')[1].split('"')[0];
+  const fatherOpts = document.querySelector('#people-father').innerHTML;
+  const motherOpts = document.querySelector('#people-mother').innerHTML;
+  assert(fatherOpts.indexOf('value="Guillaume"') >= 0 && fatherOpts.indexOf('value="Alix"') < 0,
+    'Liste Père : hommes uniquement');
+  assert(motherOpts.indexOf('value="Alix"') >= 0 && motherOpts.indexOf('value="Guillaume"') < 0,
+    'Liste Mère : femmes uniquement');
+  assert(document.querySelector('#people-spouse').innerHTML.indexOf('value="Emma"') >= 0,
+    'Liste Conjoint : tous les villageois proposés');
+  document.querySelector('#f-father').value = 'Thomas';
+  document.querySelector('#f-father').dispatch('change');
+  assert(firstOpt(document.querySelector('#people-mother').innerHTML) === 'Camellie',
+    'Père choisi → sa conjointe proposée en premier dans la liste Mère');
+  document.querySelector('#f-mother').value = 'Camellie';
+  document.querySelector('#f-mother').dispatch('change');
+  assert(firstOpt(document.querySelector('#people-father').innerHTML) === 'Thomas',
+    'Mère choisie → son conjoint proposé en premier dans la liste Père');
+  openEdit('s6'); // Thomas : modification — lui-même exclu des listes
+  assert(document.querySelector('#people-father').innerHTML.indexOf('value="Thomas"') < 0,
+    'Modification : la personne éditée exclue de sa propre liste Père');
+  openEdit(null);
 
   // 13. Liens familiaux par nom saisi librement (datalist)
   editingId = null;
